@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "references": [
+    { "path": "../../packages/db" },
+    { "path": "../../packages/embeddings" },
+    { "path": "../../packages/extractor" },
+    { "path": "../../packages/chunker" },
+    { "path": "../../packages/retrieval" },
+    { "path": "../../packages/security" },
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/shared-utils" }
+  ],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,267 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum IndexStatus {
+  pending
+  indexing
+  indexed
+  failed
+  deleted
+}
+
+enum JobState {
+  queued
+  running
+  paused
+  completed
+  failed
+  cancelled
+}
+
+enum Modality {
+  text
+  code
+  pdf
+  image
+}
+
+// ---------------------------------------------------------------------------
+// Workspaces
+// ---------------------------------------------------------------------------
+
+model Workspace {
+  id                 String              @id @default(uuid())
+  name               String
+  rootPath           String              @map("root_path")
+  status             String              @default("active")
+  embeddingModel     String              @map("embedding_model") @default("gemini-embedding-2-preview")
+  embeddingDimension Int                 @map("embedding_dimension") @default(1536)
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  settings    WorkspaceSetting[]
+  files       File[]
+  jobs        Job[]
+  auditLogs   AuditLog[]
+  savedFilters SavedFilter[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceSetting {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  key         String
+  value       String
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, key])
+  @@map("workspace_settings")
+}
+
+// ---------------------------------------------------------------------------
+// Files
+// ---------------------------------------------------------------------------
+
+model File {
+  id             String      @id @default(uuid())
+  workspaceId    String      @map("workspace_id")
+  relativePath   String      @map("relative_path")
+  absolutePath   String      @map("absolute_path")
+  checksumSha256 String      @map("checksum_sha256")
+  mimeType       String      @map("mime_type")
+  fileSizeBytes  BigInt      @map("file_size_bytes")
+  modality       Modality
+  indexStatus    IndexStatus @default(pending) @map("index_status")
+  lastError      String?     @map("last_error")
+  indexedAt      DateTime?   @map("indexed_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  workspace  Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chunks     Chunk[]
+  versions   FileVersion[]
+  previews   Preview[]
+
+  @@unique([workspaceId, relativePath])
+  @@map("files")
+}
+
+model FileVersion {
+  id             String   @id @default(uuid())
+  fileId         String   @map("file_id")
+  checksumSha256 String   @map("checksum_sha256")
+  fileSizeBytes  BigInt   @map("file_size_bytes")
+  recordedAt     DateTime @default(now()) @map("recorded_at")
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@map("file_versions")
+}
+
+// ---------------------------------------------------------------------------
+// Chunks & Embeddings
+// ---------------------------------------------------------------------------
+
+model Chunk {
+  id                 String   @id @default(uuid())
+  fileId             String   @map("file_id")
+  chunkIndex         Int      @map("chunk_index")
+  contentText        String   @map("content_text")
+  tokenEstimate      Int      @map("token_estimate")
+  modality           Modality
+  pageNumber         Int?     @map("page_number")
+  lineStart          Int?     @map("line_start")
+  lineEnd            Int?     @map("line_end")
+  sourceLocatorJson  Json?    @map("source_locator_json")
+  idempotencyKey     String   @unique @map("idempotency_key")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  file      File        @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  // Note: the actual vector column is added via raw SQL migration (pgvector)
+  embedding Embedding?
+
+  @@map("chunks")
+}
+
+model Embedding {
+  id          String   @id @default(uuid())
+  chunkId     String   @unique @map("chunk_id")
+  modelName   String   @map("model_name")
+  dimension   Int      @default(1536)
+  // vector column is managed via raw SQL — see migrations
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  chunk Chunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@map("embeddings")
+}
+
+// ---------------------------------------------------------------------------
+// Jobs
+// ---------------------------------------------------------------------------
+
+model Job {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  jobType     String   @map("job_type")
+  state       JobState @default(queued)
+  totalFiles  Int      @default(0) @map("total_files")
+  indexed     Int      @default(0)
+  skipped     Int      @default(0)
+  failed      Int      @default(0)
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  events    JobEvent[]
+
+  @@map("jobs")
+}
+
+model JobEvent {
+  id        String   @id @default(uuid())
+  jobId     String   @map("job_id")
+  event     String
+  data      Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("job_events")
+}
+
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+
+model SearchQuery {
+  id            String   @id @default(uuid())
+  workspaceId   String   @map("workspace_id")
+  queryText     String   @map("query_text")
+  queryType     String   @map("query_type") @default("search")
+  filters       Json?
+  resultCount   Int      @default(0) @map("result_count")
+  durationMs    Int?     @map("duration_ms")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  results SearchResult[]
+
+  @@map("search_queries")
+}
+
+model SearchResult {
+  id            String   @id @default(uuid())
+  queryId       String   @map("query_id")
+  chunkId       String   @map("chunk_id")
+  rank          Int
+  score         Float
+  snippet       String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  query SearchQuery @relation(fields: [queryId], references: [id], onDelete: Cascade)
+
+  @@map("search_results")
+}
+
+// ---------------------------------------------------------------------------
+// Audit & Misc
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  action      String
+  actor       String   @default("cli")
+  details     Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
+
+model Preview {
+  id            String   @id @default(uuid())
+  fileId        String   @map("file_id")
+  previewType   String   @map("preview_type")
+  cachePath     String   @map("cache_path")
+  widthPx       Int?     @map("width_px")
+  heightPx      Int?     @map("height_px")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@map("previews")
+}
+
+model SavedFilter {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  name        String
+  filters     Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("saved_filters")
+}
