@@ -3,6 +3,7 @@ import pLimit from 'p-limit';
 import { mkdir } from 'node:fs/promises';
 import { readdirSync, statSync, lstatSync } from 'node:fs';
 import type { PrismaClient } from '@docscope/db';
+import { Prisma } from '@docscope/db';
 import { GeminiEmbeddingClient, EmbeddingBatcher, RetryPolicy, QuotaLimiter } from '@docscope/embeddings';
 import { ExtractorRegistry } from '@docscope/extractor';
 import { ChunkerRegistry } from '@docscope/chunker';
@@ -205,7 +206,7 @@ export async function runIngestionPipeline(options: IngestionOptions): Promise<I
               pageNumber: c.pageNumber,
               lineStart: c.lineStart,
               lineEnd: c.lineEnd,
-              sourceLocatorJson: c.sourceLocatorJson ?? undefined,
+              sourceLocatorJson: c.sourceLocatorJson ?? Prisma.JsonNull,
               idempotencyKey: c.idempotencyKey,
             },
           }),

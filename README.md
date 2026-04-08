@@ -891,87 +891,16 @@ DocScope enforces consistent code style through:
 
 ## 🤝 Contributing
 
-We welcome contributions! Whether it's a bug fix, new file extractor, documentation improvement, or feature request — all contributions are valued.
+We welcome contributions of all kinds — bug fixes, new file extractors, documentation improvements, and feature ideas.
 
-### Getting Started
+Please read **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full guide, including:
 
-1. **Fork** the repository on GitHub
-2. **Clone** your fork locally:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/DocScope.git
-   cd DocScope
-   ```
-3. **Install dependencies:**
-   ```bash
-   pnpm install
-   ```
-4. **Create a branch** for your feature or fix:
-   ```bash
-   git checkout -b feature/my-awesome-feature
-   ```
-5. **Make your changes** and write tests
-6. **Run the checks:**
-   ```bash
-   pnpm lint
-   pnpm typecheck
-   pnpm test
-   ```
-7. **Commit** with a clear, descriptive message:
-   ```bash
-   git commit -m "feat(chunker): add YAML file chunking support"
-   ```
-8. **Push** and open a Pull Request
-
-### Commit Convention
-
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-feat(scope): add new feature
-fix(scope): fix a bug
-docs(scope): update documentation
-refactor(scope): code refactoring
-test(scope): add or update tests
-chore(scope): maintenance tasks
-```
-
-**Scopes:** `cli`, `api`, `chunker`, `extractor`, `embeddings`, `retrieval`, `security`, `db`, `shared-types`, `shared-utils`, `infra`, `docs`
-
-### Adding a New File Extractor
-
-DocScope is designed to be easily extensible. To add support for a new file type:
-
-1. **Create the extractor** in `packages/extractor/src/`:
-   ```typescript
-   // packages/extractor/src/yaml.ts
-   import type { Extractor, FileInput, ExtractedDocument } from './types.js';
-
-   export class YamlExtractor implements Extractor {
-     supports(mime: string, path: string): boolean {
-       return mime === 'application/x-yaml' || path.endsWith('.yaml') || path.endsWith('.yml');
-     }
-
-     async extract(input: FileInput): Promise<ExtractedDocument> {
-       // Your extraction logic here
-     }
-   }
-   ```
-
-2. **Register it** in `packages/extractor/src/registry.ts`
-
-3. **Create a corresponding chunker** in `packages/chunker/src/` if needed
-
-4. **Add the file extension** to `FileTypeSchema` in `packages/shared-types/src/index.ts`
-
-5. **Write tests** for the extractor and chunker
-
-### Development Tips
-
-- Each package has its own `tsconfig.json` that extends `tsconfig.base.json`
-- Use `workspace:*` protocol for inter-package dependencies
-- Turborepo caches builds — run `pnpm clean` to clear caches
-- The API server binds to `127.0.0.1` only; this is intentional for security
-- Run `docker compose -f infra/docker/docker-compose.yml logs -f` to debug database issues
+- How to report bugs and suggest features
+- Development setup and workflow
+- Commit convention (Conventional Commits)
+- Pull request process and checklist
+- How to add new file extractors or chunkers
+- Code style, testing requirements, and project structure
 
 ---
 

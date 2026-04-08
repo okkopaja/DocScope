@@ -7,8 +7,9 @@ export const jobsRouter: ReturnType<typeof Router> = Router();
 // GET /jobs/:jobId
 jobsRouter.get('/:jobId', asyncHandler(async (req, res) => {
   const db = getDb();
+  const jobId = req.params['jobId'] as string;
   const job = await db.job.findUnique({
-    where: { id: req.params['jobId'] },
+    where: { id: jobId },
     include: {
       events: {
         orderBy: { createdAt: 'desc' },
@@ -16,6 +17,6 @@ jobsRouter.get('/:jobId', asyncHandler(async (req, res) => {
       },
     },
   });
-  if (!job) throw new NotFoundError(`Job ${req.params['jobId']} not found`);
+  if (!job) throw new NotFoundError(`Job ${jobId} not found`);
   res.json(job);
 }));

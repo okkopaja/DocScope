@@ -24,8 +24,9 @@ async function getApiKey(workspaceId: string): Promise<string> {
 // GET /workspaces/:id
 workspacesRouter.get('/:id', asyncHandler(async (req, res) => {
   const db = getDb();
-  const workspace = await db.workspace.findUnique({ where: { id: req.params['id'] } });
-  if (!workspace) throw new NotFoundError(`Workspace ${req.params['id']} not found`);
+  const id = req.params['id'] as string;
+  const workspace = await db.workspace.findUnique({ where: { id } });
+  if (!workspace) throw new NotFoundError(`Workspace ${id} not found`);
   res.json(workspace);
 }));
 
@@ -129,7 +130,7 @@ workspacesRouter.get('/:id/files', asyncHandler(async (req, res) => {
 workspacesRouter.get('/:id/files/:fileId', asyncHandler(async (req, res) => {
   const db = getDb();
   const file = await db.file.findFirst({
-    where: { id: req.params['fileId'], workspaceId: req.params['id'] },
+    where: { id: req.params['fileId'] as string, workspaceId: req.params['id'] as string },
     include: { chunks: { orderBy: { chunkIndex: 'asc' }, take: 20 } },
   });
   if (!file) throw new NotFoundError('File not found');
